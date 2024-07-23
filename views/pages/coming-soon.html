@@ -1,0 +1,33 @@
+{{define "pages/coming-soon"}}
+<!DOCTYPE html>
+<html>
+  <head>
+    {{template "components/page_header" .Header}}
+
+    <style>
+      .coming-soon-container {
+        width: 80%;
+        margin: 30px auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col">
+          <div
+            class="coming-soon-container shadow p-3 mb-5 bg-body rounded text-center"
+          >
+            <h1>Coming Soon!</h1>
+            <p>
+              OpenCardsOnline.com is currently under active development. Please
+              check back again later!
+            </p>
+            <h6>Copyright 2024. OpenCardsOnline. All Rights Reserved.</h6>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+{{end}}
