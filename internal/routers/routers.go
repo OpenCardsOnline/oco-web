@@ -8,10 +8,12 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/jackc/pgx/v5"
+	"github.com/opencardsonline/oco-web/config"
 	"github.com/opencardsonline/oco-web/internal/routers/handlers"
 )
 
-func LoadRouters() *chi.Mux {
+func LoadRouters(config *config.AppConfig, db *pgx.Conn) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
@@ -20,13 +22,16 @@ func LoadRouters() *chi.Mux {
 	filesDir := http.Dir(filepath.Join(workDir, "public"))
 	FileServer(r, "/public", filesDir)
 
+	apiHandlers := &handlers.APIHandlers{}
+	apiHandlers.InitializeAPIHandlers(config, db)
+
 	// Healthcheck
-	r.Get("/health", handlers.GetHealthCheck)
+	r.Get("/health", apiHandlers.GetHealthCheck)
 
 	// API Handlers
 	// V1
-	r.Post("/api/v1/auth/register", handlers.AuthRegisterNewUser)
-	r.Get("/api/v1/auth/verify", handlers.AuthVerifyNewUser)
+	r.Post("/api/v1/auth/register", apiHandlers.AuthRegisterNewUser)
+	r.Get("/api/v1/auth/verify", apiHandlers.AuthVerifyNewUser)
 
 	// UI Handlers
 	handlers.ParseTemplates()

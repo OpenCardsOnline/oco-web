@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/opencardsonline/oco-web/config"
 	"github.com/opencardsonline/oco-web/internal/database/entities"
 	logger "github.com/opencardsonline/oco-web/internal/logging"
@@ -17,40 +18,53 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func VerifyNewUser(token string) bool {
-	userVerificationToken := repositories.GetUserVerificationTokenByToken(token)
+type AuthService struct {
+	appConfig     *config.AppConfig
+	db            *pgx.Conn
+	_emailService *EmailService
+	_userRepo     *repositories.UserRepository
+}
+
+func (_s *AuthService) New(appConfig *config.AppConfig, db *pgx.Conn) {
+	_s.db = db
+	_s.appConfig = appConfig
+	_s._emailService = &EmailService{apiKey: appConfig.EmailAPIKey}
+	_s._userRepo = &repositories.UserRepository{}
+	_s._userRepo.New(db)
+}
+
+func (_s *AuthService) VerifyNewUser(token string) bool {
+	userVerificationToken := _s._userRepo.GetUserVerificationTokenByToken(token)
 	if userVerificationToken == nil {
 		logger.Log.Error("Invalid Token", errors.New("the verification token could not be found"))
 		return false
 	}
 
-	existingUser := repositories.GetUserById(int(userVerificationToken.UserId))
+	existingUser := _s._userRepo.GetUserById(int(userVerificationToken.UserId))
 	if existingUser == nil {
 		logger.Log.Error("This user does not exist!", errors.New("cannot find the specified user"))
 		return false
 	}
 
-	fmt.Println(existingUser)
-
 	return true
 }
 
-func CreateNewUser(newUser models.NewUserRequest) *entities.UserEntity {
-	existingUser := repositories.GetUserByEmail(newUser.Email)
+func (_s *AuthService) CreateNewUser(newUser models.NewUserRequest) *entities.UserEntity {
+	existingUser := _s._userRepo.GetUserByEmail(newUser.Email)
 	if existingUser != nil {
 		logger.Log.Error("This user already exists!", errors.New("cannot create user because they already exist"))
 		return nil
 	}
 
-	hashedPassword, err := HashPassword(newUser.Password)
+	hashedPassword, err := _s.HashPassword(newUser.Password)
 	if err != nil {
 		logger.Log.Error("An error occurred when attempting to hash the password", err)
 		return nil
 	}
 
-	createdUser := repositories.InsertNewUser(newUser.Email, newUser.Username, hashedPassword)
+	createdUser := _s._userRepo.InsertNewUser(newUser.Email, newUser.Username, hashedPassword)
 
-	verificationToken, err := GenerateRandomString(32)
+	verificationToken, err := _s.GenerateRandomString(32)
 	if err != nil {
 		logger.Log.Error("An error occurred when attempting to generate a verification token", err)
 		return nil
@@ -58,33 +72,30 @@ func CreateNewUser(newUser models.NewUserRequest) *entities.UserEntity {
 
 	finalToken := strconv.FormatInt(time.Now().Unix(), 10) + verificationToken
 
-	fmt.Println("")
-	fmt.Println(finalToken)
-
 	htmlEmailContent := fmt.Sprintf(`
 		<p>
 			Welcome to OpenCardsOnline! To verify your account, please click the link: 
 			<a href="%s/api/v1/auth/verify?token=%s">CLICK HERE</a>
 		</p>
-	`, config.AppConfiguration.APIBaseURL, finalToken)
-	SendEmail("OpenCardsOnline", "do-not-reply@vistatable.com", "OpenCardsOnline - Verify Your Account", createdUser.Username, createdUser.Email, htmlEmailContent)
+	`, _s.appConfig.APIBaseURL, finalToken)
+	_s._emailService.SendEmail("OpenCardsOnline", "do-not-reply@vistatable.com", "OpenCardsOnline - Verify Your Account", createdUser.Username, createdUser.Email, htmlEmailContent)
 
-	repositories.InsertNewUserVerificationToken(&createdUser.Id, &finalToken)
+	_s._userRepo.InsertNewUserVerificationToken(&createdUser.Id, &finalToken)
 
 	return createdUser
 }
 
-func HashPassword(password string) (string, error) {
+func (_s *AuthService) HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(bytes), err
 }
 
-func CheckPasswordHash(password, hash string) bool {
+func (_s *AuthService) CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
 
-func GenerateRandomString(n int) (string, error) {
+func (_s *AuthService) GenerateRandomString(n int) (string, error) {
 	randomBytes := make([]byte, n)
 
 	if _, err := io.ReadFull(rand.Reader, randomBytes); err != nil {

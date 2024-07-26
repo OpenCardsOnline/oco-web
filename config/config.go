@@ -7,47 +7,35 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
-var AppConfiguration *AppConfig
-
 type AppConfig struct {
 	DBConnectionString string
 	APIBaseURL         string
 	EmailAPIKey        string
 }
 
-const (
-	dBConnectionString = "DB_CONNECTION_STRING"
-	apiBaseUrl         = "API_BASE_URL"
-	emailApiKey        = "EMAIL_API_KEY"
-)
-
-func LoadEnvVars() (config *AppConfig) {
+func (_c *AppConfig) LoadEnvVars() {
 	envErrorMessages := []string{}
 
-	dbConnectionString := os.Getenv(dBConnectionString)
+	dbConnectionString := os.Getenv("DB_CONNECTION_STRING")
 	if dbConnectionString == "" {
-		envErrorMessages = append(envErrorMessages, dBConnectionString)
+		envErrorMessages = append(envErrorMessages, "DB_CONNECTION_STRING")
 	}
 
-	apiBaseURL := os.Getenv(apiBaseUrl)
+	apiBaseURL := os.Getenv("API_BASE_URL")
 	if apiBaseURL == "" {
-		envErrorMessages = append(envErrorMessages, apiBaseUrl)
+		envErrorMessages = append(envErrorMessages, "API_BASE_URL")
 	}
 
-	emailAPIKey := os.Getenv(emailApiKey)
+	emailAPIKey := os.Getenv("EMAIL_API_KEY")
 	if emailAPIKey == "" {
-		envErrorMessages = append(envErrorMessages, emailApiKey)
+		envErrorMessages = append(envErrorMessages, "EMAIL_API_KEY")
 	}
 
 	if len(envErrorMessages) > 0 {
 		panic(fmt.Sprintf("Missing required ENV vars: %v", envErrorMessages))
 	}
 
-	appConfig := AppConfig{}
-	appConfig.DBConnectionString = dbConnectionString
-	appConfig.APIBaseURL = apiBaseURL
-	appConfig.EmailAPIKey = emailAPIKey
-
-	AppConfiguration = &appConfig
-	return AppConfiguration
+	_c.DBConnectionString = dbConnectionString
+	_c.APIBaseURL = apiBaseURL
+	_c.EmailAPIKey = emailAPIKey
 }

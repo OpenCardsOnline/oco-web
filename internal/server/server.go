@@ -3,19 +3,30 @@ package server
 import (
 	"net/http"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/opencardsonline/oco-web/config"
 	"github.com/opencardsonline/oco-web/internal/database"
 	"github.com/opencardsonline/oco-web/internal/routers"
 )
 
-func RunServer() {
+type Server struct {
+	appConfig *config.AppConfig
+	db        *pgx.Conn
+}
 
-	config := config.LoadEnvVars()
+func (_s *Server) Start() {
 
-	database.InitializeDBConnection(config.DBConnectionString)
+	// Initialize App Configuration
+	_s.appConfig = &config.AppConfig{}
+	_s.appConfig.LoadEnvVars()
 
-	r := routers.LoadRouters()
+	// Initialize DB Connection
+	_s.db = database.InitializeDBConnection(_s.appConfig.DBConnectionString)
 
+	// Initialize Chi Routers
+	r := routers.LoadRouters(_s.appConfig, _s.db)
+
+	// Start listening for requests
 	http.ListenAndServe(":3000", r)
 
 }

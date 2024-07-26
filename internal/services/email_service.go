@@ -4,17 +4,20 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/opencardsonline/oco-web/config"
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
-func SendEmail(fromUsername string, fromEmail string, subject string, toUsername string, toEmail string, htmlContent string) {
+type EmailService struct {
+	apiKey string
+}
+
+func (_s *EmailService) SendEmail(fromUsername string, fromEmail string, subject string, toUsername string, toEmail string, htmlContent string) {
 	from := mail.NewEmail(fromUsername, fromEmail)
 	to := mail.NewEmail(toUsername, toEmail)
 	plainTextContent := "Please Enable HTML To View This Email!"
 	message := mail.NewSingleEmail(from, subject, to, plainTextContent, htmlContent)
-	client := sendgrid.NewSendClient(config.AppConfiguration.EmailAPIKey)
+	client := sendgrid.NewSendClient(_s.apiKey)
 	_, err := client.Send(message)
 	if err != nil {
 		log.Println(err)

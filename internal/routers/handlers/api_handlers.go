@@ -4,15 +4,30 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/opencardsonline/oco-web/config"
 	"github.com/opencardsonline/oco-web/internal/models"
 	"github.com/opencardsonline/oco-web/internal/services"
 )
 
-func GetHealthCheck(w http.ResponseWriter, r *http.Request) {
+type APIHandlers struct {
+	appConfig   *config.AppConfig
+	db          *pgx.Conn
+	authService *services.AuthService
+}
+
+func (_h *APIHandlers) InitializeAPIHandlers(config *config.AppConfig, db *pgx.Conn) {
+	_h.appConfig = config
+	_h.db = db
+	_h.authService = &services.AuthService{}
+	_h.authService.New(config, db)
+}
+
+func (_h *APIHandlers) GetHealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
-func AuthRegisterNewUser(w http.ResponseWriter, r *http.Request) {
+func (_h *APIHandlers) AuthRegisterNewUser(w http.ResponseWriter, r *http.Request) {
 	var data *models.NewUserRequest
 
 	err := json.NewDecoder(r.Body).Decode(&data)
@@ -21,7 +36,7 @@ func AuthRegisterNewUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdUser := services.CreateNewUser(*data)
+	createdUser := _h.authService.CreateNewUser(*data)
 	if createdUser == nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("An error occurred when attempting to create the user."))
@@ -34,7 +49,7 @@ func AuthRegisterNewUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func AuthVerifyNewUser(w http.ResponseWriter, r *http.Request) {
+func (_h *APIHandlers) AuthVerifyNewUser(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	if token != "" {
 
@@ -43,7 +58,7 @@ func AuthVerifyNewUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isUserVerified := services.VerifyNewUser(token)
+	isUserVerified := _h.authService.VerifyNewUser(token)
 	if isUserVerified {
 		w.Write([]byte("<p>User was verified successfully. You may now login!</p>"))
 		return
