@@ -2,11 +2,11 @@ package main
 
 import (
 	"github.com/opencardsonline/oco-web/cmd"
-	logger "github.com/opencardsonline/oco-web/internal/logging"
+	logger "github.com/opencardsonline/oco-web/logging"
 )
 
 func main() {
-	logger.InitializeLogger()
-	logger.Log.Info("Logger is initialized!")
+	log := logger.New()
+	log.Info("logger is initialized")
 	cmd.CommandHandler()
 }

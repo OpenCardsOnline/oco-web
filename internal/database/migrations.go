@@ -3,13 +3,12 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/opencardsonline/oco-web/config"
-	logger "github.com/opencardsonline/oco-web/internal/logging"
+	logger "github.com/opencardsonline/oco-web/logging"
 )
 
 var migrationTableName = "migration_history"
@@ -34,8 +33,8 @@ type MigrationStruct struct {
 	db *pgx.Conn
 }
 
-func (_m *MigrationStruct) New(db *pgx.Conn) {
-	db = db
+func (_m *MigrationStruct) New(dbRef *pgx.Conn) {
+	_m.db = dbRef
 }
 
 func (_m *MigrationStruct) InitializeMigrationHistoryTable() {
@@ -48,7 +47,8 @@ func (_m *MigrationStruct) InitializeMigrationHistoryTable() {
 	`, migrationTableName)
 	_, err := _m.db.Exec(context.Background(), sql)
 	if err != nil {
-		fmt.Print(err.Error())
+		logger.Log.Error("an error occurred when attempting to create the migration history table", "MigrationStruct.InitializeMigrationHistoryTable", err)
+		os.Exit(1)
 	}
 
 }
@@ -63,7 +63,8 @@ func (_m *MigrationStruct) getAllMigrationFiles() []MigrationFile {
 
 	files, err := os.ReadDir(migrationsDir)
 	if err != nil {
-		log.Fatalf("failed to read directory: %v", err)
+		logger.Log.Error("failed to read migrations directory", "MigrationStruct.getAllMigrationFiles", err)
+		os.Exit(1)
 	}
 
 	var migrationFiles []MigrationFile
@@ -74,7 +75,7 @@ func (_m *MigrationStruct) getAllMigrationFiles() []MigrationFile {
 
 			content, err := os.ReadFile(filePath)
 			if err != nil {
-				log.Printf("failed to read file %s: %v", filePath, err)
+				logger.Log.Error(fmt.Sprintf("failed to read migration file [%s]", filePath), "MigrationStruct.getAllMigrationFiles", err)
 				continue
 			}
 
@@ -97,7 +98,8 @@ func (_m *MigrationStruct) getMigrationsInDB() []string {
 	`, migrationTableName)
 	rows, err := _m.db.Query(context.Background(), sql)
 	if err != nil {
-		fmt.Print(err.Error())
+		logger.Log.Error("unable to read migrations from db", "MigrationStruct.getMigrationsInDB", err)
+		os.Exit(1)
 	}
 
 	var filenames []string
@@ -105,7 +107,8 @@ func (_m *MigrationStruct) getMigrationsInDB() []string {
 	for rows.Next() {
 		var value string
 		if err := rows.Scan(&value); err != nil {
-			log.Fatalf("Failed to scan row: %v", err)
+			logger.Log.Error("unable to read rows from migrations table", "MigrationStruct.getMigrationsInDB", err)
+			os.Exit(1)
 		}
 		filenames = append(filenames, value)
 	}
@@ -144,7 +147,7 @@ func (_m *MigrationStruct) performMigrations(migrations []MigrationFile) {
 
 			_, err := _m.db.Exec(context.Background(), migration.SQL)
 			if err != nil {
-				fmt.Print(err.Error())
+				logger.Log.Error("an error occurred when attempting to execute the migration file", "MigrationStruct.performMigrations", err)
 			} else {
 				sql := fmt.Sprintf(`
 					INSERT INTO public.%s (
@@ -154,7 +157,8 @@ func (_m *MigrationStruct) performMigrations(migrations []MigrationFile) {
 			`, migrationTableName)
 				_, err = _m.db.Exec(context.Background(), sql, migration.Filename)
 				if err != nil {
-					fmt.Print(err.Error())
+					logger.Log.Error("an error occurred when attempting to write the logs to the migration history table", "MigrationStruct.performMigrations", err)
+					os.Exit(1)
 				}
 			}
 		}

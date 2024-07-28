@@ -12,9 +12,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/opencardsonline/oco-web/config"
 	"github.com/opencardsonline/oco-web/internal/database/entities"
-	logger "github.com/opencardsonline/oco-web/internal/logging"
 	"github.com/opencardsonline/oco-web/internal/models"
 	"github.com/opencardsonline/oco-web/internal/repositories"
+	logger "github.com/opencardsonline/oco-web/logging"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -36,13 +36,13 @@ func (_s *AuthService) New(appConfig *config.AppConfig, db *pgx.Conn) {
 func (_s *AuthService) VerifyNewUser(token string) bool {
 	userVerificationToken := _s._userRepo.GetUserVerificationTokenByToken(token)
 	if userVerificationToken == nil {
-		logger.Log.Error("Invalid Token", errors.New("the verification token could not be found"))
+		logger.Log.Error("invalid token", "AuthService.VerifyNewUser", errors.New("the verification token could not be found"))
 		return false
 	}
 
 	existingUser := _s._userRepo.GetUserById(int(userVerificationToken.UserId))
 	if existingUser == nil {
-		logger.Log.Error("This user does not exist!", errors.New("cannot find the specified user"))
+		logger.Log.Error(fmt.Sprintf("the user with id does not exist [%s]", string(userVerificationToken.UserId)), "AuthService.VerifyNewUser", errors.New("cannot verify user because the user user with the specified id could not be found"))
 		return false
 	}
 
@@ -52,13 +52,13 @@ func (_s *AuthService) VerifyNewUser(token string) bool {
 func (_s *AuthService) CreateNewUser(newUser models.NewUserRequest) *entities.UserEntity {
 	existingUser := _s._userRepo.GetUserByEmail(newUser.Email)
 	if existingUser != nil {
-		logger.Log.Error("This user already exists!", errors.New("cannot create user because they already exist"))
+		logger.Log.Error(fmt.Sprintf("the user with email already exists [%s]", newUser.Email), "AuthService.CreateNewUser", errors.New("cannot create user because the user user with the specified email already exists"))
 		return nil
 	}
 
 	hashedPassword, err := _s.HashPassword(newUser.Password)
 	if err != nil {
-		logger.Log.Error("An error occurred when attempting to hash the password", err)
+		logger.Log.Error("an error occurred when attempting to hash the password", "AuthService.CreateNewUser", err)
 		return nil
 	}
 
@@ -66,7 +66,7 @@ func (_s *AuthService) CreateNewUser(newUser models.NewUserRequest) *entities.Us
 
 	verificationToken, err := _s.GenerateRandomString(32)
 	if err != nil {
-		logger.Log.Error("An error occurred when attempting to generate a verification token", err)
+		logger.Log.Error("an error occurred when attempting to generate a verification token", "AuthService.CreateNewUser", err)
 		return nil
 	}
 
