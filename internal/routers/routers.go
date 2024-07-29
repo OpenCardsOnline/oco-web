@@ -8,12 +8,12 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/jackc/pgx/v5"
 	"github.com/opencardsonline/oco-web/config"
+	"github.com/opencardsonline/oco-web/internal/database"
 	"github.com/opencardsonline/oco-web/internal/routers/handlers"
 )
 
-func LoadRouters(config *config.AppConfig, db *pgx.Conn) *chi.Mux {
+func LoadRouters(config *config.AppConfig, db *database.AppDBConn) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 

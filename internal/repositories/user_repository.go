@@ -1,18 +1,16 @@
 package repositories
 
 import (
-	"context"
-	"fmt"
-
-	"github.com/jackc/pgx/v5"
+	"github.com/opencardsonline/oco-web/internal/database"
 	"github.com/opencardsonline/oco-web/internal/database/entities"
+	logger "github.com/opencardsonline/oco-web/logging"
 )
 
 type UserRepository struct {
-	db *pgx.Conn
+	db *database.AppDBConn
 }
 
-func (_r *UserRepository) New(db *pgx.Conn) {
+func (_r *UserRepository) New(db *database.AppDBConn) {
 	_r.db = db
 }
 
@@ -36,7 +34,7 @@ func (_r *UserRepository) GetUserByEmail(email string) *entities.UserEntity {
 		WHERE email = $1
 	`
 	var user entities.UserEntity
-	err := _r.db.QueryRow(context.Background(), sql, email).Scan(
+	err := _r.db.QueryRow(sql, email).Scan(
 		&user.Id,
 		&user.CreatedAt,
 		&user.ModifiedAt,
@@ -51,7 +49,7 @@ func (_r *UserRepository) GetUserByEmail(email string) *entities.UserEntity {
 		&user.BanReason,
 		&user.CanUseAPIKeys)
 	if err != nil {
-		fmt.Println(err.Error())
+		logger.Log.Error("an error occurred when attempting to get the user by email", "UserRepository.GetUserByEmail", err)
 		return nil
 	}
 	return &user
@@ -77,7 +75,7 @@ func (_r *UserRepository) GetUserById(id int) *entities.UserEntity {
 		WHERE id = $1
 	`
 	var user entities.UserEntity
-	err := _r.db.QueryRow(context.Background(), sql, id).Scan(
+	err := _r.db.QueryRow(sql, id).Scan(
 		&user.Id,
 		&user.CreatedAt,
 		&user.ModifiedAt,
@@ -92,7 +90,7 @@ func (_r *UserRepository) GetUserById(id int) *entities.UserEntity {
 		&user.BanReason,
 		&user.CanUseAPIKeys)
 	if err != nil {
-		fmt.Print(err.Error())
+		logger.Log.Error("an error occurred when attempting to get the user by id", "UserRepository.GetUserById", err)
 		return nil
 	}
 	return &user
@@ -108,13 +106,13 @@ func (_r *UserRepository) InsertNewUser(email string, username string, passwordH
 		VALUES ($1,$2,$3)
 		RETURNING id
 	`
-	var lastInsertId int
-	err := _r.db.QueryRow(context.Background(), sql, email, username, passwordHash).Scan(&lastInsertId)
+
+	lastInsertId, err := _r.db.InsertRowAndReturnLastID(sql, email, username, passwordHash)
 	if err != nil {
-		fmt.Print(err.Error())
+		logger.Log.Error("an error occurred when attempting to insert new user", "UserRepository.InsertNewUser", err)
 		return nil
 	}
-	result := _r.GetUserById(lastInsertId)
+	result := _r.GetUserById(*lastInsertId)
 	if result == nil {
 		return nil
 	}
@@ -129,9 +127,9 @@ func (_r *UserRepository) InsertNewUserVerificationToken(userId *uint, hashedTok
 		) 
 		VALUES ($1,$2)
 	`
-	_, err := _r.db.Exec(context.Background(), sql, userId, hashedToken)
+	err := _r.db.ExecuteQueryWithNoReturn(sql, userId, hashedToken)
 	if err != nil {
-		fmt.Print(err.Error())
+		logger.Log.Error("an error occurred when attempting to insert new user verification token", "UserRepository.InsertNewUserVerificationToken", err)
 		return
 	}
 }
@@ -149,7 +147,7 @@ func (_r *UserRepository) GetUserVerificationTokenByToken(token string) *entitie
 		WHERE token_hash = $1
 	`
 	var userVerificationTokenEntity entities.UserVerificationTokenEntity
-	err := _r.db.QueryRow(context.Background(), sql, token).Scan(
+	err := _r.db.QueryRow(sql, token).Scan(
 		&userVerificationTokenEntity.Id,
 		&userVerificationTokenEntity.CreatedAt,
 		&userVerificationTokenEntity.ModifiedAt,
@@ -157,7 +155,7 @@ func (_r *UserRepository) GetUserVerificationTokenByToken(token string) *entitie
 		&userVerificationTokenEntity.TokenHash,
 		&userVerificationTokenEntity.UserId)
 	if err != nil {
-		fmt.Print(err.Error())
+		logger.Log.Error("an error occurred when attempting to get user verification token", "UserRepository.GetUserVerificationTokenByToken", err)
 		return nil
 	}
 	return &userVerificationTokenEntity

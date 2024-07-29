@@ -1,12 +1,10 @@
 package database
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/opencardsonline/oco-web/config"
 	logger "github.com/opencardsonline/oco-web/logging"
 )
@@ -17,7 +15,8 @@ func RunMigrations() {
 	appConfig := config.AppConfig{}
 	appConfig.LoadEnvVars()
 
-	db := InitializeDBConnection(appConfig.DBConnectionString)
+	db := &AppDBConn{}
+	db.New(appConfig.DBConnectionString)
 
 	mStruct := &MigrationStruct{}
 	mStruct.New(db)
@@ -30,10 +29,10 @@ func RunMigrations() {
 }
 
 type MigrationStruct struct {
-	db *pgx.Conn
+	db *AppDBConn
 }
 
-func (_m *MigrationStruct) New(dbRef *pgx.Conn) {
+func (_m *MigrationStruct) New(dbRef *AppDBConn) {
 	_m.db = dbRef
 }
 
@@ -45,7 +44,7 @@ func (_m *MigrationStruct) InitializeMigrationHistoryTable() {
 		"filename" text
 		);
 	`, migrationTableName)
-	_, err := _m.db.Exec(context.Background(), sql)
+	err := _m.db.ExecuteQueryWithNoReturn(sql)
 	if err != nil {
 		logger.Log.Error("an error occurred when attempting to create the migration history table", "MigrationStruct.InitializeMigrationHistoryTable", err)
 		os.Exit(1)
@@ -96,7 +95,7 @@ func (_m *MigrationStruct) getMigrationsInDB() []string {
 			FROM public.%s
 		ORDER BY created_at ASC 
 	`, migrationTableName)
-	rows, err := _m.db.Query(context.Background(), sql)
+	rows, err := _m.db.QueryRows(sql)
 	if err != nil {
 		logger.Log.Error("unable to read migrations from db", "MigrationStruct.getMigrationsInDB", err)
 		os.Exit(1)
@@ -145,7 +144,7 @@ func (_m *MigrationStruct) performMigrations(migrations []MigrationFile) {
 			logger.Log.Info("New Migration: " + migration.Filename)
 			logger.Log.Info(migration.SQL)
 
-			_, err := _m.db.Exec(context.Background(), migration.SQL)
+			err := _m.db.ExecuteQueryWithNoReturn(migration.SQL)
 			if err != nil {
 				logger.Log.Error("an error occurred when attempting to execute the migration file", "MigrationStruct.performMigrations", err)
 			} else {
@@ -155,7 +154,7 @@ func (_m *MigrationStruct) performMigrations(migrations []MigrationFile) {
 					) 
 					VALUES ($1)
 			`, migrationTableName)
-				_, err = _m.db.Exec(context.Background(), sql, migration.Filename)
+				err = _m.db.ExecuteQueryWithNoReturn(sql, migration.Filename)
 				if err != nil {
 					logger.Log.Error("an error occurred when attempting to write the logs to the migration history table", "MigrationStruct.performMigrations", err)
 					os.Exit(1)

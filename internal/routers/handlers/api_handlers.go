@@ -4,19 +4,19 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/opencardsonline/oco-web/config"
+	"github.com/opencardsonline/oco-web/internal/database"
 	"github.com/opencardsonline/oco-web/internal/models"
 	"github.com/opencardsonline/oco-web/internal/services"
 )
 
 type APIHandlers struct {
 	appConfig   *config.AppConfig
-	db          *pgx.Conn
+	db          *database.AppDBConn
 	authService *services.AuthService
 }
 
-func (_h *APIHandlers) InitializeAPIHandlers(config *config.AppConfig, db *pgx.Conn) {
+func (_h *APIHandlers) InitializeAPIHandlers(config *config.AppConfig, db *database.AppDBConn) {
 	_h.appConfig = config
 	_h.db = db
 	_h.authService = &services.AuthService{}

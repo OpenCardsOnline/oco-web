@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/opencardsonline/oco-web/config"
+	"github.com/opencardsonline/oco-web/internal/database"
 	"github.com/opencardsonline/oco-web/internal/database/entities"
 	"github.com/opencardsonline/oco-web/internal/models"
 	"github.com/opencardsonline/oco-web/internal/repositories"
@@ -20,12 +20,12 @@ import (
 
 type AuthService struct {
 	appConfig     *config.AppConfig
-	db            *pgx.Conn
+	db            *database.AppDBConn
 	_emailService *EmailService
 	_userRepo     *repositories.UserRepository
 }
 
-func (_s *AuthService) New(appConfig *config.AppConfig, db *pgx.Conn) {
+func (_s *AuthService) New(appConfig *config.AppConfig, db *database.AppDBConn) {
 	_s.db = db
 	_s.appConfig = appConfig
 	_s._emailService = &EmailService{apiKey: appConfig.EmailAPIKey}
